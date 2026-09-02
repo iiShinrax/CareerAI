@@ -6,7 +6,7 @@ import numpy as np
 from sentence_transformers import SentenceTransformer
 
 
-INPUT_FILE = "data/processed/onet/occupation_profiles.jsonl"
+INPUT_FILE = "data/processed/onet/rag_documents.jsonl"
 VECTOR_DB_DIR = "vector_db"
 
 INDEX_FILE = os.path.join(VECTOR_DB_DIR, "index.faiss")
@@ -185,20 +185,29 @@ def main():
 
     print("Loading occupation profiles...")
 
-    profiles = []
+documents = []
 
-    with open(INPUT_FILE, "r", encoding="utf-8") as f:
-        for line in f:
-            profiles.append(json.loads(line))
+with open(INPUT_FILE, "r", encoding="utf-8") as f:
+    for line in f:
+        documents.append(json.loads(line))
 
-    print(f"Loaded {len(profiles)} occupations.")
+print(f"Loaded {len(documents)} RAG documents.")
 
-    print("\nCreating semantic chunks...")
+print("\nPreparing RAG documents...")
 
-    chunks = []
+chunks = []
 
-    for profile in profiles:
-        chunks.extend(create_chunks(profile))
+for document in documents:
+
+    chunks.append({
+        "occupation_code": document["occupation_code"],
+        "title": document["title"],
+        "job_zone": document["job_zone"],
+        "section": "full_profile",
+        "text": document["text"],
+    })
+
+    print(f"Prepared {len(chunks)} RAG chunks.")
 
     print(f"Created {len(chunks)} semantic chunks.")
 
@@ -246,7 +255,7 @@ def main():
     print("\n" + "=" * 60)
     print("VECTOR DATABASE REBUILT SUCCESSFULLY")
     print("=" * 60)
-    print(f"Occupations: {len(profiles)}")
+    print(f"Documents:   {len(documents)}")
     print(f"Chunks:      {len(chunks)}")
     print(f"Vectors:     {index.ntotal}")
     print(f"Dimension:   {dimension}")

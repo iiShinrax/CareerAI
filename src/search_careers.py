@@ -1,9 +1,121 @@
-
 import json
 import re
 
 import faiss
 from sentence_transformers import SentenceTransformer
+
+
+# =========================================================
+# Career Intent Detection
+# =========================================================
+
+CAREER_INTENTS = {
+
+    "data_scientist": {
+        "title_terms": [
+            "data scientist",
+            "data science",
+        ],
+        "related_terms": [
+            "data analysis",
+            "data analytics",
+            "machine learning",
+            "data mining",
+            "statistics",
+            "predictive modeling",
+        ],
+    },
+
+    "machine_learning_engineer": {
+        "title_terms": [
+            "machine learning engineer",
+            "machine learning engineering",
+            "ml engineer",
+            "ml engineering",
+        ],
+        "related_terms": [
+            "machine learning",
+            "model deployment",
+            "machine learning models",
+            "predictive modeling",
+        ],
+    },
+
+    "ai_engineer": {
+        "title_terms": [
+            "ai engineer",
+            "ai engineering",
+            "artificial intelligence engineer",
+            "artificial intelligence engineering",
+        ],
+        "related_terms": [
+            "artificial intelligence",
+            "machine learning",
+            "deep learning",
+            "ai applications",
+            "ai systems",
+        ],
+    },
+
+    "software_engineer": {
+        "title_terms": [
+            "software engineer",
+            "software engineering",
+            "software developer",
+            "software development",
+        ],
+        "related_terms": [
+            "programming",
+            "application development",
+            "computer programming",
+        ],
+    },
+
+    "computer_vision": {
+        "title_terms": [
+            "computer vision",
+            "computer vision engineer",
+        ],
+        "related_terms": [
+            "image recognition",
+            "image classification",
+            "object detection",
+            "deep learning",
+        ],
+    },
+
+    "nlp": {
+        "title_terms": [
+            "nlp",
+            "natural language processing",
+            "nlp engineer",
+        ],
+        "related_terms": [
+            "language model",
+            "large language model",
+            "text analysis",
+            "deep learning",
+        ],
+    },
+}
+
+
+def detect_career_intent(query):
+
+    text = normalize(query)
+
+    detected = []
+
+    for career, data in CAREER_INTENTS.items():
+
+        for term in data["title_terms"]:
+
+            if contains_term(text, term):
+
+                detected.append(career)
+                break
+
+    return detected
 
 
 # =========================================================
@@ -104,6 +216,28 @@ SKILL_FAMILIES = {
             "data mining",
             "predictive modeling",
             "python",
+            "sql",
+        ],
+    },
+
+    "sql": {
+        "keywords": [
+            "sql",
+            "structured query language",
+            "mysql",
+            "postgresql",
+            "postgres",
+            "sqlite",
+            "t-sql",
+            "pl/sql",
+        ],
+        "related": [
+            "database",
+            "databases",
+            "database management",
+            "data analysis",
+            "data science",
+            "data warehousing",
         ],
     },
 
@@ -147,9 +281,6 @@ SKILL_FAMILIES = {
 # =========================================================
 
 AI_TERMS = {
-    # -----------------------------------------------------
-    # Core AI / ML
-    # -----------------------------------------------------
 
     "artificial intelligence": 1.0,
     "machine learning": 1.0,
@@ -158,36 +289,17 @@ AI_TERMS = {
     "neural network": 0.9,
     "neural networks": 0.9,
 
-    # -----------------------------------------------------
-    # AI Specializations
-    # -----------------------------------------------------
-
     "computer vision": 0.9,
     "natural language processing": 0.9,
     "predictive modeling": 0.8,
     "pattern recognition": 0.7,
 
-    # -----------------------------------------------------
-    # Data / AI ecosystem
-    # -----------------------------------------------------
-
     "data science": 0.8,
     "data scientist": 1.0,
     "data mining": 0.7,
 
-    # -----------------------------------------------------
-    # Generic technical concepts
-    #
-    # Keep these relatively weak because they can occur
-    # in many occupations.
-    # -----------------------------------------------------
-
     "algorithm": 0.2,
     "analytics": 0.2,
-
-    # -----------------------------------------------------
-    # Modern AI application development
-    # -----------------------------------------------------
 
     "large language model": 1.0,
     "large language models": 1.0,
@@ -206,10 +318,6 @@ AI_TERMS = {
 
     "computer vision systems": 0.9,
 
-    # -----------------------------------------------------
-    # AI application / engineering concepts
-    # -----------------------------------------------------
-
     "ai application": 1.0,
     "ai applications": 1.0,
     "ai system": 0.9,
@@ -225,44 +333,6 @@ AI_TERMS = {
 
 
 # =========================================================
-# Query Skill Detection
-# =========================================================
-def detect_skills(query):
-
-    text = query.lower()
-
-    detected = []
-
-    for skill, data in SKILL_FAMILIES.items():
-
-        for keyword in data["keywords"]:
-
-            pattern = r"\b" + re.escape(
-                keyword.lower()
-            ) + r"\b"
-
-            if re.search(pattern, text):
-
-                detected.append(skill)
-
-                break
-
-    # -------------------------------------------------
-    # Standalone AI
-    # -------------------------------------------------
-
-    if re.search(r"\bai\b", text):
-
-        if "artificial_intelligence" not in detected:
-
-            detected.append(
-                "artificial_intelligence"
-            )
-
-    return detected
-
-
-# =========================================================
 # Text Normalization
 # =========================================================
 
@@ -274,8 +344,8 @@ def normalize(text):
     return re.sub(
         r"\s+",
         " ",
-        text.lower()
-    )
+        str(text).lower()
+    ).strip()
 
 
 # =========================================================
@@ -284,9 +354,13 @@ def normalize(text):
 
 def contains_term(text, term):
 
-    pattern = r"\b" + re.escape(
-        term.lower()
-    ) + r"\b"
+    text = normalize(text)
+    term = normalize(term)
+
+    if not text or not term:
+        return False
+
+    pattern = r"\b" + re.escape(term) + r"\b"
 
     return bool(
         re.search(pattern, text)
@@ -294,22 +368,62 @@ def contains_term(text, term):
 
 
 # =========================================================
+# Query Skill Detection
+# =========================================================
+
+def detect_skills(query):
+
+    text = normalize(query)
+
+    detected = []
+
+    for skill, data in SKILL_FAMILIES.items():
+
+        for keyword in data["keywords"]:
+
+            if contains_term(
+                text,
+                keyword
+            ):
+
+                detected.append(skill)
+                break
+
+    # -----------------------------------------------------
+    # Standalone AI
+    # -----------------------------------------------------
+
+    if contains_term(text, "ai"):
+
+        if "artificial_intelligence" not in detected:
+
+            detected.append(
+                "artificial_intelligence"
+            )
+
+    return detected
+
+
+# =========================================================
 # Technical Matching
 # =========================================================
+
 def calculate_technical_match(
     text,
     detected_skills
 ):
+
     """
-    Calculate compatibility between the user's
-    technical skills and the occupation.
+    Measures compatibility between the user's skills
+    and the occupation.
 
-    Exact skill matches receive the strongest score.
-    Related technical concepts receive partial credit.
+    Important principle:
 
-    Career-oriented technical terms such as software
-    development and programming can support AI application
-    building without being treated as direct AI skills.
+        Python/programming alone should NOT make an
+        occupation an AI career.
+
+    AI/ML skills receive much stronger weight than
+    generic programming.
     """
 
     text = normalize(text)
@@ -319,19 +433,21 @@ def calculate_technical_match(
 
     skill_weights = {
 
-        "python": 0.8,
+        "python": 0.65,
 
-        "machine_learning": 1.6,
+        "machine_learning": 1.60,
 
-        "deep_learning": 1.8,
+        "deep_learning": 1.80,
 
-        "artificial_intelligence": 1.7,
+        "artificial_intelligence": 1.70,
 
-        "data_science": 1.4,
+        "data_science": 1.40,
 
-        "computer_vision": 1.6,
+        "computer_vision": 1.60,
 
-        "nlp": 1.6,
+        "nlp": 1.60,
+
+        "sql": 0.70,
     }
 
     total_score = 0.0
@@ -394,7 +510,7 @@ def calculate_technical_match(
                     )
 
         # -------------------------------------------------
-        # Score direct skill compatibility
+        # Score
         # -------------------------------------------------
 
         if exact_match:
@@ -404,8 +520,8 @@ def calculate_technical_match(
         elif related_matches > 0:
 
             related_score = min(
-                0.40 * related_matches,
-                0.70
+                0.25 * related_matches,
+                0.60
             )
 
             total_score += (
@@ -413,122 +529,51 @@ def calculate_technical_match(
             )
 
     # =====================================================
-    # Career-oriented technical compatibility
+    # Generic career compatibility
     # =====================================================
 
-    technical_career_terms = {
+    # Generic programming should provide only a small
+    # amount of additional evidence.
 
-        "software development": 0.30,
-        "software developer": 0.30,
-        "software developers": 0.30,
+    generic_terms = {
 
-        "software engineering": 0.30,
-        "software engineer": 0.30,
-        "software engineers": 0.30,
+        "software development": 0.08,
+        "software engineering": 0.08,
 
-        "programming": 0.25,
-        "computer programming": 0.25,
+        "application development": 0.08,
 
-        "application development": 0.30,
-        "application developer": 0.30,
+        "programming": 0.05,
+        "computer programming": 0.05,
 
-        "application software": 0.25,
+        "software developer": 0.08,
+        "software developers": 0.08,
 
-        "web development": 0.15,
+        "software engineer": 0.08,
+        "software engineers": 0.08,
 
-        "computer software": 0.20,
-
-        "systems development": 0.20,
-
-        "systems engineering": 0.20,
-
-        "data analysis": 0.20,
-
-        "data analytics": 0.20,
+        "data analysis": 0.08,
+        "data analytics": 0.08,
     }
 
-    career_bonus = 0.0
+    generic_bonus = 0.0
 
-    career_matches = 0
-
-    for term, bonus in technical_career_terms.items():
+    for term, bonus in generic_terms.items():
 
         if contains_term(
             text,
             term
         ):
 
-            career_bonus += bonus
-
-            career_matches += 1
+            generic_bonus += bonus
 
             if term not in matched_terms:
 
-                matched_terms.append(
-                    term
-                )
+                matched_terms.append(term)
 
-    # -----------------------------------------------------
-    # Cap the career bonus so generic technical careers
-    # cannot overwhelm genuine skill matches.
-    # -----------------------------------------------------
-
-    career_bonus = min(
-        career_bonus,
-        0.40
+    generic_bonus = min(
+        generic_bonus,
+        0.15
     )
-
-    # -----------------------------------------------------
-    # AI application-building intent
-    # -----------------------------------------------------
-
-    ai_application_terms = [
-
-        "software development",
-        "software engineering",
-        "application development",
-        "application software",
-        "programming",
-        "computer programming",
-        "software developer",
-        "software developers",
-        "software engineer",
-        "software engineers",
-    ]
-
-    ai_application_match = False
-
-    for term in ai_application_terms:
-
-        if contains_term(
-            text,
-            term
-        ):
-
-            ai_application_match = True
-
-            break
-
-    if ai_application_match:
-
-        ai_skills = {
-            "machine_learning",
-            "deep_learning",
-            "artificial_intelligence",
-            "computer_vision",
-            "nlp",
-        }
-
-        if ai_skills.intersection(
-            set(detected_skills)
-        ):
-
-            career_bonus += 0.20
-
-            career_bonus = min(
-                career_bonus,
-                0.50
-            )
 
     # =====================================================
     # Final score
@@ -543,15 +588,13 @@ def calculate_technical_match(
         max_score
     )
 
-    # Add career compatibility without allowing it
-    # to dominate direct skill matching.
-
     score = min(
-        base_score + career_bonus,
+        base_score + generic_bonus,
         1.0
     )
 
     return score, matched_terms
+
 
 # =========================================================
 # AI Relevance
@@ -562,17 +605,22 @@ def calculate_ai_relevance(
     text,
     detected_skills
 ):
-    """
-    Measures how strongly the occupation matches
-    the AI-related skills explicitly detected in
-    the user's query.
 
-    The score is based on user-relevant AI skills
-    rather than the entire global AI vocabulary.
+    """
+    Measures direct AI/ML relevance.
+
+    Title evidence is important.
+    Direct AI concepts receive strong scores.
+    Generic programming does not count as AI evidence.
     """
 
-    combined = normalize(
-        title + " " + text
+    title = normalize(title)
+    text = normalize(text)
+
+    combined = (
+        title +
+        " " +
+        text
     )
 
     if not detected_skills:
@@ -614,11 +662,10 @@ def calculate_ai_relevance(
         data = SKILL_FAMILIES[skill]
 
         exact_match = False
-
         related_matches = 0
 
         # -------------------------------------------------
-        # Exact AI skill match
+        # Exact AI skill
         # -------------------------------------------------
 
         for keyword in data["keywords"]:
@@ -632,7 +679,7 @@ def calculate_ai_relevance(
                 break
 
         # -------------------------------------------------
-        # Related AI concepts
+        # Related AI evidence
         # -------------------------------------------------
 
         for keyword in data["related"]:
@@ -655,7 +702,7 @@ def calculate_ai_relevance(
         elif related_matches > 0:
 
             related_score = min(
-                0.40 * related_matches,
+                0.30 * related_matches,
                 0.70
             )
 
@@ -664,6 +711,7 @@ def calculate_ai_relevance(
             )
 
     if max_score == 0:
+
         return 0.0
 
     return min(
@@ -671,43 +719,7 @@ def calculate_ai_relevance(
         1.0
     )
 
-    ai_skills = {
-        "machine_learning",
-        "deep_learning",
-        "artificial_intelligence",
-        "computer_vision",
-        "nlp",
-        "data_science",
-    }
 
-    if not ai_skills.intersection(
-        set(detected_skills)
-    ):
-
-        return 0.0
-
-    score = 0.0
-    max_possible = 0.0
-
-    for term, weight in AI_TERMS.items():
-
-        max_possible += weight
-
-        if contains_term(
-            combined,
-            term
-        ):
-
-            score += weight
-
-    if max_possible == 0:
-
-        return 0.0
-
-    return min(
-        score / max_possible,
-        1.0
-    )
 # =========================================================
 # AI Application Development Score
 # =========================================================
@@ -716,33 +728,36 @@ def calculate_ai_application_score(
     title,
     text
 ):
+
     """
-    Measures how strongly an occupation is related to
-    building AI / ML applications and systems.
+    Measures whether an occupation is useful for
+    building AI/ML applications.
 
-    The score prioritizes:
-    1. AI/ML-specific development evidence
-    2. AI/ML concepts
-    3. AI-focused career titles
-    4. Generic software development evidence
+    Direct AI engineering evidence is strongest.
+
+    Generic software development can help, but it
+    should never be enough by itself to classify a
+    career as an AI career.
     """
 
-    combined = normalize(
-        title + " " + text
-    )
+    title = normalize(title)
+    text = normalize(text)
 
-    normalized_title = normalize(
-        title
+    combined = (
+        title +
+        " " +
+        text
     )
 
     # -----------------------------------------------------
-    # Strong AI / ML development evidence
+    # Strong AI development evidence
     # -----------------------------------------------------
 
     ai_development_terms = [
 
         "ai applications",
         "ai application",
+
         "artificial intelligence applications",
         "artificial intelligence application",
 
@@ -751,6 +766,7 @@ def calculate_ai_application_score(
 
         "ai systems",
         "ai system",
+
         "artificial intelligence systems",
         "artificial intelligence system",
 
@@ -780,7 +796,7 @@ def calculate_ai_application_score(
     ]
 
     # -----------------------------------------------------
-    # General AI / ML evidence
+    # General AI evidence
     # -----------------------------------------------------
 
     ai_terms = [
@@ -788,37 +804,50 @@ def calculate_ai_application_score(
         "artificial intelligence",
         "machine learning",
         "deep learning",
+
         "neural network",
         "neural networks",
+
         "computer vision",
+
         "natural language processing",
+
         "predictive modeling",
+
         "data science",
+
         "deep neural",
+
         "machine intelligence",
     ]
 
     # -----------------------------------------------------
-    # Generic software development evidence
+    # Generic development evidence
     # -----------------------------------------------------
 
     development_terms = [
 
         "software development",
         "software engineering",
+
         "application development",
+
         "programming",
+
         "programming languages",
+
         "develop software",
         "develop applications",
+
         "software developer",
         "software developers",
+
         "software engineer",
         "software engineers",
     ]
 
     # -----------------------------------------------------
-    # AI-focused career titles
+    # AI-focused title evidence
     # -----------------------------------------------------
 
     ai_title_terms = [
@@ -826,87 +855,52 @@ def calculate_ai_application_score(
         "data scientist",
         "data scientists",
 
-        "machine learning",
         "machine learning engineer",
         "machine learning engineers",
 
-        "artificial intelligence",
+        "artificial intelligence engineer",
+        "artificial intelligence engineers",
+
         "ai engineer",
         "ai engineers",
+
         "ai developer",
         "ai developers",
 
-        "computer vision",
         "computer vision engineer",
         "computer vision engineers",
 
-        "natural language processing",
         "nlp engineer",
         "nlp engineers",
-
-        "robotics engineer",
-        "robotics engineers",
     ]
 
     # -----------------------------------------------------
-    # Count AI development evidence
+    # Count evidence
     # -----------------------------------------------------
 
-    ai_development_matches = 0
+    ai_development_matches = sum(
+        1
+        for term in ai_development_terms
+        if contains_term(combined, term)
+    )
 
-    for term in ai_development_terms:
+    ai_matches = sum(
+        1
+        for term in ai_terms
+        if contains_term(combined, term)
+    )
 
-        if contains_term(
-            combined,
-            term
-        ):
+    development_matches = sum(
+        1
+        for term in development_terms
+        if contains_term(combined, term)
+    )
 
-            ai_development_matches += 1
-
-    # -----------------------------------------------------
-    # Count general AI evidence
-    # -----------------------------------------------------
-
-    ai_matches = 0
-
-    for term in ai_terms:
-
-        if contains_term(
-            combined,
-            term
-        ):
-
-            ai_matches += 1
-
-    # -----------------------------------------------------
-    # Count generic development evidence
-    # -----------------------------------------------------
-
-    development_matches = 0
-
-    for term in development_terms:
-
-        if contains_term(
-            combined,
-            term
-        ):
-
-            development_matches += 1
-
-    # -----------------------------------------------------
-    # Count AI-focused title evidence
-    # -----------------------------------------------------
-
-    title_matches = 0
-
-    for term in ai_title_terms:
-
-        if contains_term(
-            normalized_title,
-            term
-        ):
-
-            title_matches += 1
+    title_matches = sum(
+        1
+        for term in ai_title_terms
+        if contains_term(title, term)
+    )
 
     # -----------------------------------------------------
     # No AI evidence
@@ -921,7 +915,7 @@ def calculate_ai_application_score(
         return 0.0
 
     # -----------------------------------------------------
-    # Normalize individual signals
+    # Normalize
     # -----------------------------------------------------
 
     ai_development_score = min(
@@ -935,7 +929,7 @@ def calculate_ai_application_score(
     )
 
     development_score = min(
-        development_matches / 3.0,
+        development_matches / 4.0,
         1.0
     )
 
@@ -945,72 +939,26 @@ def calculate_ai_application_score(
     )
 
     # -----------------------------------------------------
-    # Final score
+    # Important:
+    #
+    # Generic development has low weight.
+    # AI evidence has high weight.
     # -----------------------------------------------------
 
     score = (
 
-        0.40 * ai_development_score
+        0.45 * ai_development_score
 
-        + 0.30 * ai_score
+        + 0.35 * ai_score
 
-        + 0.20 * title_score
+        + 0.15 * title_score
 
-        + 0.10 * development_score
-
+        + 0.05 * development_score
     )
 
     return min(
         score,
         1.0
-    )
-
-    # -----------------------------------------------------
-    # Development evidence score
-    # -----------------------------------------------------
-
-    development_score = min(
-        development_matches / 3.0,
-        1.0
-    )
-
-    # -----------------------------------------------------
-    # Title specialization score
-    # -----------------------------------------------------
-
-    title_score = min(
-        title_matches / 2.0,
-        1.0
-    )
-
-    # -----------------------------------------------------
-    # Final AI application score
-    # -----------------------------------------------------
-
-    score = (
-        0.50 * ai_score
-        + 0.30 * development_score
-        + 0.20 * title_score
-    )
-
-    return min(
-        score,
-        1.0
-    )
-
-    ai_score = min(
-        ai_matches / 4.0,
-        1.0
-    )
-
-    development_score = min(
-        development_matches / 3.0,
-        1.0
-    )
-
-    return (
-        0.60 * ai_score
-        + 0.40 * development_score
     )
 
 
@@ -1022,51 +970,62 @@ def calculate_domain_score(
     title,
     text
 ):
-    """
-    Determines how strongly an occupation belongs
-    to a technical/computing career domain.
 
-    Title evidence is given much more importance than
-    incidental technology names appearing in the
-    occupation description.
+    """
+    Measures whether an occupation belongs to a
+    technical/computing domain.
+
+    This is a broad signal and therefore should NOT
+    dominate career matching.
     """
 
     title = normalize(title)
     text = normalize(text)
 
-    # -----------------------------------------------------
-    # Strong technical career titles
-    # -----------------------------------------------------
-
     strong_title_terms = [
+
         "software developer",
         "software developers",
+
         "software engineer",
         "software engineers",
+
         "computer programmer",
         "computer programmers",
+
         "programmer",
         "programmers",
+
         "application developer",
         "application developers",
+
         "application engineer",
         "application engineers",
+
         "artificial intelligence engineer",
         "artificial intelligence developer",
+
         "ai engineer",
         "ai developer",
+
         "machine learning engineer",
         "machine learning developer",
+
         "ml engineer",
         "ml developer",
+
         "data scientist",
         "data scientists",
+
         "computer scientist",
         "computer scientists",
+
         "computer systems analyst",
         "computer systems analysts",
+
         "systems engineer",
         "systems engineers",
+
         "computer engineer",
         "computer engineers",
     ]
@@ -1080,11 +1039,8 @@ def calculate_domain_score(
 
             return 1.0
 
-    # -----------------------------------------------------
-    # Other strongly technical titles
-    # -----------------------------------------------------
-
     technical_title_terms = [
+
         "software",
         "programming",
         "developer",
@@ -1102,82 +1058,56 @@ def calculate_domain_score(
         "database",
     ]
 
-    title_matches = 0
-
-    for term in technical_title_terms:
-
-        if contains_term(
-            title,
-            term
-        ):
-
-            title_matches += 1
-
-    # -----------------------------------------------------
-    # Technical evidence in occupation text
-    # -----------------------------------------------------
+    title_matches = sum(
+        1
+        for term in technical_title_terms
+        if contains_term(title, term)
+    )
 
     technical_text_terms = [
+
         "software development",
         "software engineering",
         "programming",
+
         "computer programming",
+
         "application development",
+
         "data science",
+
         "machine learning",
+
         "deep learning",
+
         "artificial intelligence",
+
         "computer vision",
+
         "natural language processing",
+
         "database",
+
         "software development tools",
+
         "programming languages",
     ]
 
-    text_matches = 0
+    text_matches = sum(
+        1
+        for term in technical_text_terms
+        if contains_term(text, term)
+    )
 
-    for term in technical_text_terms:
-
-        if contains_term(
-            text,
-            term
-        ):
-
-            text_matches += 1
-
-    # -----------------------------------------------------
-    # Title-driven score
-    # -----------------------------------------------------
-
-    if title_matches > 0:
-
-        title_score = min(
-            title_matches / 2.0,
-            1.0
-        )
-
-    else:
-
-        title_score = 0.0
-
-    # -----------------------------------------------------
-    # Text-driven score
-    #
-    # Text evidence is deliberately capped because
-    # O*NET software lists can contain incidental tools
-    # unrelated to the actual occupation.
-    # -----------------------------------------------------
+    title_score = min(
+        title_matches / 2.0,
+        1.0
+    )
 
     text_score = min(
         text_matches / 4.0,
         1.0
     )
-
-    # -----------------------------------------------------
-    # Combine title + occupation evidence
-    #
-    # Title is much more important than incidental text.
-    # -----------------------------------------------------
 
     score = (
         title_score * 0.75
@@ -1189,19 +1119,20 @@ def calculate_domain_score(
         score,
         1.0
     )
+
+
 # =========================================================
 # Title Relevance
 # =========================================================
+
 def calculate_title_relevance(
     title,
     detected_skills
 ):
+
     """
     Measures how closely the occupation title matches
-    the user's technical specialization.
-
-    AI/ML careers receive the strongest relevance,
-    followed by software and programming careers.
+    the user's technical direction.
     """
 
     title = normalize(title)
@@ -1209,7 +1140,9 @@ def calculate_title_relevance(
     if not detected_skills:
         return 0.0
 
-    skills = set(detected_skills)
+    skills = set(
+        detected_skills
+    )
 
     ai_user = bool(
         {
@@ -1226,24 +1159,34 @@ def calculate_title_relevance(
         return 0.0
 
     # -----------------------------------------------------
-    # Strong AI / ML careers
+    # Direct AI careers
     # -----------------------------------------------------
 
     strong_ai_titles = [
+
         "artificial intelligence engineer",
         "artificial intelligence developer",
+
         "ai engineer",
         "ai developer",
+
         "machine learning engineer",
         "machine learning developer",
+
         "ml engineer",
         "ml developer",
+
         "deep learning engineer",
         "deep learning developer",
     ]
 
     for term in strong_ai_titles:
-        if term in title:
+
+        if contains_term(
+            title,
+            term
+        ):
+
             return 1.0
 
     # -----------------------------------------------------
@@ -1251,93 +1194,136 @@ def calculate_title_relevance(
     # -----------------------------------------------------
 
     data_titles = [
+
         "data scientist",
         "data scientists",
         "data science",
     ]
 
     for term in data_titles:
-        if term in title:
+
+        if contains_term(
+            title,
+            term
+        ):
+
             return 0.90
 
     # -----------------------------------------------------
     # Computer Vision
     # -----------------------------------------------------
 
-    vision_titles = [
-        "computer vision engineer",
-        "computer vision",
-        "vision engineer",
-    ]
-
     if "computer_vision" in skills:
 
+        vision_titles = [
+
+            "computer vision engineer",
+            "computer vision",
+            "vision engineer",
+        ]
+
         for term in vision_titles:
-            if term in title:
+
+            if contains_term(
+                title,
+                term
+            ):
+
                 return 0.90
 
     # -----------------------------------------------------
     # NLP / LLM
     # -----------------------------------------------------
 
-    nlp_titles = [
-        "natural language processing",
-        "nlp engineer",
-        "language model engineer",
-        "llm engineer",
-        "large language model",
-    ]
-
     if "nlp" in skills:
 
+        nlp_titles = [
+
+            "natural language processing",
+            "nlp engineer",
+            "language model engineer",
+            "llm engineer",
+            "large language model",
+        ]
+
         for term in nlp_titles:
-            if term in title:
+
+            if contains_term(
+                title,
+                term
+            ):
+
                 return 0.90
 
     # -----------------------------------------------------
-    # Robotics
-    # -----------------------------------------------------
-
-    robotics_titles = [
-        "robotics engineer",
-        "robotics",
-        "robotic engineer",
-    ]
-
-    for term in robotics_titles:
-        if term in title:
-            return 0.60
-
-    # -----------------------------------------------------
-    # Software Engineering
+    # Software
+    #
+    # Strong adjacent career.
     # -----------------------------------------------------
 
     software_titles = [
+
         "software engineer",
         "software developer",
         "software developers",
+
         "application developer",
         "application software developer",
     ]
 
     for term in software_titles:
-        if term in title:
-            return 0.80
+
+        if contains_term(
+            title,
+            term
+        ):
+
+            return 0.75
+
+    # -----------------------------------------------------
+    # Robotics
+    #
+    # Related but NOT a direct AI career.
+    # -----------------------------------------------------
+
+    robotics_titles = [
+
+        "robotics engineer",
+        "robotic engineer",
+        "robotics",
+    ]
+
+    for term in robotics_titles:
+
+        if contains_term(
+            title,
+            term
+        ):
+
+            return 0.45
 
     # -----------------------------------------------------
     # General programming
     # -----------------------------------------------------
 
     programming_titles = [
+
         "computer programmer",
         "computer programmers",
     ]
 
     for term in programming_titles:
-        if term in title:
-            return 0.65
+
+        if contains_term(
+            title,
+            term
+        ):
+
+            return 0.30
 
     return 0.0
+
+
 # =========================================================
 # User Intent Detection
 # =========================================================
@@ -1346,20 +1332,61 @@ def detect_ai_intent(query):
 
     text = normalize(query)
 
+    # -----------------------------------------------------
+    # Direct AI career intent
+    # -----------------------------------------------------
+
+    direct_ai_terms = [
+
+        "ai engineer",
+        "artificial intelligence engineer",
+
+        "machine learning engineer",
+        "ml engineer",
+
+        "data scientist",
+
+        "ai developer",
+        "artificial intelligence developer",
+
+        "machine learning developer",
+    ]
+
+    for term in direct_ai_terms:
+
+        if contains_term(
+            text,
+            term
+        ):
+
+            return True
+
+    # -----------------------------------------------------
+    # AI application-building intent
+    # -----------------------------------------------------
+
     intent_terms = [
 
         "build ai",
         "building ai",
+
         "ai applications",
         "ai application",
+
         "artificial intelligence applications",
         "artificial intelligence application",
+
         "build machine learning",
         "machine learning applications",
+
         "ml applications",
+
         "deep learning applications",
+
         "build models",
+
         "build ai systems",
+
         "ai systems",
     ]
 
@@ -1376,6 +1403,382 @@ def detect_ai_intent(query):
 
 
 # =========================================================
+# Career Goal Score
+# =========================================================
+
+def calculate_career_goal_score(
+    title,
+    career_goal,
+    preferred_roles,
+    domains
+):
+
+    """
+    Measures how closely the occupation matches the
+    user's explicit career goal.
+
+    This is deliberately title-focused.
+
+    Example:
+
+        User wants AI Engineer
+
+        AI Engineer
+            -> 1.00
+
+        Machine Learning Engineer
+            -> 0.95
+
+        Data Scientist
+            -> 0.85
+
+        Software Developer
+            -> 0.65
+
+        Data Engineer
+            -> 0.60
+
+        Robotics Engineer
+            -> 0.35
+
+        Computer Programmer
+            -> 0.00
+
+    This prevents generic words such as "programming"
+    from turning unrelated careers into AI careers.
+    """
+
+    title = normalize(title)
+    goal = normalize(career_goal)
+
+    roles = [
+        normalize(role)
+        for role in preferred_roles
+        if normalize(role)
+    ]
+
+    domains_text = " ".join(
+        normalize(domain)
+        for domain in domains
+        if normalize(domain)
+    )
+
+    target = " ".join(
+        [
+            goal,
+            " ".join(roles),
+            domains_text,
+        ]
+    )
+
+    # =====================================================
+    # Exact goal / preferred role title
+    # =====================================================
+
+    for role in roles:
+
+        if contains_term(
+            title,
+            role
+        ):
+
+            return 1.0
+
+    if goal and contains_term(
+        title,
+        goal
+    ):
+
+        return 1.0
+
+    # =====================================================
+    # Detect AI goal
+    # =====================================================
+
+    ai_goal = (
+        contains_term(target, "ai")
+        or
+        contains_term(
+            target,
+            "artificial intelligence"
+        )
+        or
+        contains_term(
+            target,
+            "machine learning"
+        )
+        or
+        contains_term(
+            target,
+            "deep learning"
+        )
+    )
+
+    # =====================================================
+    # AI career hierarchy
+    # =====================================================
+
+    if ai_goal:
+
+        # -------------------------------------------------
+        # Direct AI / ML titles
+        # -------------------------------------------------
+
+        direct_ai_titles = [
+
+            "ai engineer",
+            "artificial intelligence engineer",
+
+            "machine learning engineer",
+            "ml engineer",
+
+            "deep learning engineer",
+
+            "ai developer",
+            "artificial intelligence developer",
+
+            "machine learning developer",
+            "ml developer",
+        ]
+
+        for term in direct_ai_titles:
+
+            if contains_term(
+                title,
+                term
+            ):
+
+                return 0.95
+
+        # -------------------------------------------------
+        # Data Scientist
+        # -------------------------------------------------
+
+        if (
+            contains_term(
+                title,
+                "data scientist"
+            )
+            or
+            contains_term(
+                title,
+                "data science"
+            )
+        ):
+
+            return 0.85
+
+        # -------------------------------------------------
+        # Computer Scientist
+        # -------------------------------------------------
+
+        if contains_term(
+            title,
+            "computer scientist"
+        ):
+
+            return 0.70
+
+        # -------------------------------------------------
+        # Software Developer / Engineer
+        #
+        # Strong adjacent AI implementation career.
+        # -------------------------------------------------
+
+        software_titles = [
+
+            "software developer",
+            "software engineer",
+
+            "application developer",
+            "application engineer",
+        ]
+
+        for term in software_titles:
+
+            if contains_term(
+                title,
+                term
+            ):
+
+                return 0.65
+
+        # -------------------------------------------------
+        # Data Engineering
+        # -------------------------------------------------
+
+        data_engineering_titles = [
+
+            "data engineer",
+            "data engineering",
+
+            "database engineer",
+        ]
+
+        for term in data_engineering_titles:
+
+            if contains_term(
+                title,
+                term
+            ):
+
+                return 0.60
+
+        # -------------------------------------------------
+        # Robotics
+        #
+        # AI-related, but not the target career.
+        # -------------------------------------------------
+
+        robotics_titles = [
+
+            "robotics engineer",
+            "robotic engineer",
+            "robotics",
+        ]
+
+        for term in robotics_titles:
+
+            if contains_term(
+                title,
+                term
+            ):
+
+                return 0.35
+
+        # -------------------------------------------------
+        # Computer Programmer
+        #
+        # Programming alone is NOT enough for AI career
+        # matching.
+        # -------------------------------------------------
+
+        if (
+            contains_term(
+                title,
+                "computer programmer"
+            )
+            or
+            contains_term(
+                title,
+                "programmer"
+            )
+        ):
+
+            return 0.15
+
+        # -------------------------------------------------
+        # AI-related technical titles
+        # -------------------------------------------------
+
+        ai_related_titles = [
+
+            "computer vision",
+            "nlp",
+            "natural language processing",
+        ]
+
+        for term in ai_related_titles:
+
+            if contains_term(
+                title,
+                term
+            ):
+
+                return 0.75
+
+        return 0.0
+
+    # =====================================================
+    # Non-AI goal
+    # =====================================================
+
+    # Exact title word overlap only.
+
+    goal_words = [
+        word
+        for word in goal.split()
+        if len(word) > 3
+    ]
+
+    if not goal_words:
+
+        return 0.0
+
+    matches = sum(
+        1
+        for word in goal_words
+        if contains_term(
+            title,
+            word
+        )
+    )
+
+    if matches == len(goal_words):
+
+        return 0.90
+
+    if matches >= 2:
+
+        return 0.60
+
+    if matches == 1:
+
+        return 0.30
+
+    return 0.0
+
+
+# =========================================================
+# Goal-Aware Final Score
+# =========================================================
+
+def calculate_goal_aware_score(
+    base_score,
+    career_goal_score,
+    title_relevance,
+    ai_intent
+):
+
+    """
+    Adds explicit career-goal alignment to the existing
+    ranking score.
+
+    Career goal is important, but it should not completely
+    override technical evidence.
+    """
+
+    # -----------------------------------------------------
+    # Goal alignment
+    # -----------------------------------------------------
+
+    goal_bonus = (
+        career_goal_score * 0.18
+    )
+
+    # -----------------------------------------------------
+    # Small title bonus
+    # -----------------------------------------------------
+
+    title_bonus = (
+        title_relevance * 0.03
+    )
+
+    final_score = (
+        base_score
+        +
+        goal_bonus
+        +
+        title_bonus
+    )
+
+    return min(
+        final_score,
+        1.0
+    )
+
+
+# =========================================================
 # Final Ranking Score
 # =========================================================
 
@@ -1389,9 +1792,16 @@ def calculate_final_score(
     ai_intent,
     detected_skills
 ):
+
     """
-    Combines semantic retrieval with technical,
-    specialization, title, and domain signals.
+    Combines retrieval and ranking signals.
+
+    AI-focused searches prioritize:
+        AI relevance
+        AI application evidence
+        technical skills
+        title
+        semantic similarity
     """
 
     if not detected_skills:
@@ -1399,10 +1809,6 @@ def calculate_final_score(
         return semantic_score
 
     # -----------------------------------------------------
-    # Standard technical query
-    # -----------------------------------------------------
-
-     # -----------------------------------------------------
     # Standard technical query
     # -----------------------------------------------------
 
@@ -1421,38 +1827,46 @@ def calculate_final_score(
 
         semantic_weight = 0.15
         technical_weight = 0.25
-        ai_weight = 0.20
-        ai_application_weight = 0.25
-        domain_weight = 0.05
-        title_weight = 0.10
+        ai_weight = 0.25
+        ai_application_weight = 0.20
+        domain_weight = 0.03
+        title_weight = 0.12
 
     final_score = (
 
-    semantic_score *
-    semantic_weight
+        semantic_score
+        * semantic_weight
 
-    + technical_score *
-    technical_weight
+        +
 
-    + ai_relevance *
-    ai_weight
+        technical_score
+        * technical_weight
 
-    + ai_application_score *
-    ai_application_weight
+        +
 
-    + domain_score *
-    domain_weight
+        ai_relevance
+        * ai_weight
 
-    + title_relevance *
-    title_weight
-)
+        +
 
+        ai_application_score
+        * ai_application_weight
+
+        +
+
+        domain_score
+        * domain_weight
+
+        +
+
+        title_relevance
+        * title_weight
+    )
 
     return min(
         final_score,
         1.0
     )
-
 
 
 # =========================================================
@@ -1464,17 +1878,12 @@ def collect_unique_candidates(
     scores,
     indices
 ):
+
     """
-    FAISS may return multiple chunks belonging to
-    the same occupation.
+    FAISS may return multiple chunks from the same
+    occupation.
 
-    Instead of keeping only the highest-scoring chunk,
-    this function combines the text from all retrieved
-    chunks belonging to the same occupation.
-
-    This gives the ranking system access to the full
-    occupation information when calculating technical
-    and AI relevance.
+    Combine chunks belonging to the same occupation.
     """
 
     unique = {}
@@ -1501,11 +1910,8 @@ def collect_unique_candidates(
             ""
         )
 
-        # -------------------------------------------------
-        # Fallback key
-        # -------------------------------------------------
-
         if not code:
+
             code = title.lower().strip()
 
         # -------------------------------------------------
@@ -1515,7 +1921,9 @@ def collect_unique_candidates(
         if code not in unique:
 
             unique[code] = {
+
                 "result": dict(result),
+
                 "semantic_score": float(
                     semantic_score
                 ),
@@ -1535,10 +1943,12 @@ def collect_unique_candidates(
 
                 existing[
                     "semantic_score"
-                ] = float(semantic_score)
+                ] = float(
+                    semantic_score
+                )
 
             # -------------------------------------------------
-            # Combine text from all chunks
+            # Combine text
             # -------------------------------------------------
 
             existing_text = existing[
@@ -1553,19 +1963,26 @@ def collect_unique_candidates(
                 ""
             )
 
-            if new_text and new_text not in existing_text:
+            if (
+                new_text
+                and
+                new_text not in existing_text
+            ):
 
                 existing[
                     "result"
                 ]["text"] = (
                     existing_text
-                    + "\n"
-                    + new_text
+                    +
+                    "\n"
+                    +
+                    new_text
                 )
 
     return list(
         unique.values()
     )
+
 
 # =========================================================
 # Generate Explanation
@@ -1576,43 +1993,81 @@ def generate_explanation(
     matched_terms,
     technical_score,
     ai_relevance,
-    title_relevance
+    title_relevance,
+    career_goal_score=0.0
 ):
-    """
-    Creates a human-readable explanation
-    for the recommendation.
-    """
 
     reasons = []
 
+    # -----------------------------------------------------
     # Technical matches
+    # -----------------------------------------------------
 
     if matched_terms:
 
         useful_terms = matched_terms[:4]
 
         reasons.append(
-            "matches " +
+            "matches "
+            +
             ", ".join(
                 useful_terms
             )
         )
 
-    # AI relevance
+    # -----------------------------------------------------
+    # Career goal
+    # -----------------------------------------------------
 
-    if ai_relevance >= 0.20:
+    if career_goal_score >= 0.90:
 
         reasons.append(
-            "strongly related to AI/data work"
+            "directly matches your career goal"
+        )
+
+    elif career_goal_score >= 0.70:
+
+        reasons.append(
+            "strongly aligns with your career goal"
+        )
+
+    elif career_goal_score >= 0.50:
+
+        reasons.append(
+            "is a strong adjacent career to your goal"
+        )
+
+    elif career_goal_score >= 0.30:
+
+        reasons.append(
+            "is related to your career goal"
+        )
+
+    # -----------------------------------------------------
+    # AI relevance
+    # -----------------------------------------------------
+
+    if ai_relevance >= 0.60:
+
+        reasons.append(
+            "strong AI/ML relevance"
+        )
+
+    elif ai_relevance >= 0.25:
+
+        reasons.append(
+            "moderate AI/ML relevance"
         )
 
     elif ai_relevance >= 0.08:
 
         reasons.append(
-            "has some AI/data relevance"
+            "some AI/data relevance"
         )
 
+    # -----------------------------------------------------
     # Title relevance
+    # -----------------------------------------------------
 
     if title_relevance >= 0.80:
 
@@ -1628,7 +2083,9 @@ def generate_explanation(
             "to your technical direction"
         )
 
+    # -----------------------------------------------------
     # Technical alignment
+    # -----------------------------------------------------
 
     if technical_score >= 0.65:
 
@@ -1651,8 +2108,10 @@ def generate_explanation(
 
     return (
         f"{title} is recommended because it "
-        + "; ".join(reasons)
-        + "."
+        +
+        "; ".join(reasons)
+        +
+        "."
     )
 
 
@@ -1702,6 +2161,10 @@ def main():
         MODEL_NAME
     )
 
+    print(
+        "Retrieval system ready."
+    )
+
     # -----------------------------------------------------
     # User query
     # -----------------------------------------------------
@@ -1718,11 +2181,11 @@ def main():
         query
     )
 
-    if detected_skills:
+    print(
+        "\nDetected technical terms:"
+    )
 
-        print(
-            "\nDetected technical terms:"
-        )
+    if detected_skills:
 
         print(
             ", ".join(
@@ -1733,11 +2196,31 @@ def main():
     else:
 
         print(
-            "\nNo specific technical skills detected."
+            "None"
         )
 
     # -----------------------------------------------------
-    # Detect intent
+    # Detect career intent
+    # -----------------------------------------------------
+
+    career_intents = detect_career_intent(
+        query
+    )
+
+    if career_intents:
+
+        print(
+            "\nDetected career intents:"
+        )
+
+        print(
+            ", ".join(
+                career_intents
+            )
+        )
+
+    # -----------------------------------------------------
+    # Detect AI intent
     # -----------------------------------------------------
 
     ai_intent = detect_ai_intent(
@@ -1747,12 +2230,16 @@ def main():
     if ai_intent:
 
         print(
-            "Detected AI application-building intent."
+            "Detected AI-focused career/application intent."
         )
 
     # -----------------------------------------------------
     # Query embedding
     # -----------------------------------------------------
+
+    print(
+        "\nGenerating retrieval embedding..."
+    )
 
     query_embedding = model.encode(
 
@@ -1782,7 +2269,7 @@ def main():
     )
 
     # -----------------------------------------------------
-    # Deduplicate occupations
+    # Deduplicate
     # -----------------------------------------------------
 
     candidates = collect_unique_candidates(
@@ -1791,9 +2278,78 @@ def main():
         indices
     )
 
+    print(
+        f"Retrieved {len(candidates)} unique occupations."
+    )
+
+    # =====================================================
+    # Extract career goal information
+    #
+    # The LLM retriever can pass these fields when this
+    # module is imported.
+    #
+    # For standalone use, infer them from the query.
+    # =====================================================
+
+    career_goal = query
+
+    preferred_roles = []
+
+    domains = []
+
     # -----------------------------------------------------
+    # If the query directly contains an AI career target,
+    # normalize it into a career goal.
+    # -----------------------------------------------------
+
+    if contains_term(
+        query,
+        "ai engineer"
+    ):
+
+        career_goal = "AI engineer"
+        preferred_roles = [
+            "AI Engineer"
+        ]
+        domains = [
+            "AI",
+            "machine learning",
+            "software engineering"
+        ]
+
+    elif contains_term(
+        query,
+        "machine learning engineer"
+    ):
+
+        career_goal = "Machine Learning Engineer"
+        preferred_roles = [
+            "Machine Learning Engineer"
+        ]
+        domains = [
+            "machine learning",
+            "AI",
+            "software engineering"
+        ]
+
+    elif contains_term(
+        query,
+        "data scientist"
+    ):
+
+        career_goal = "Data Scientist"
+        preferred_roles = [
+            "Data Scientist"
+        ]
+        domains = [
+            "data science",
+            "machine learning",
+            "AI"
+        ]
+
+    # =====================================================
     # Calculate ranking features
-    # -----------------------------------------------------
+    # =====================================================
 
     ranked_results = []
 
@@ -1839,10 +2395,20 @@ def main():
                 detected_skills
             )
         )
-        
 
         # -------------------------------------------------
-        # Domain score
+        # AI application score
+        # -------------------------------------------------
+
+        ai_application_score = (
+            calculate_ai_application_score(
+                title,
+                text
+            )
+        )
+
+        # -------------------------------------------------
+        # Domain
         # -------------------------------------------------
 
         domain_score = (
@@ -1851,16 +2417,6 @@ def main():
                 text
             )
         )
-        # -------------------------------------------------
-        # AI application development score
-        # -------------------------------------------------
-
-        ai_application_score = (
-        calculate_ai_application_score(
-            title,
-            text
-        )
-    )
 
         # -------------------------------------------------
         # Title relevance
@@ -1874,21 +2430,76 @@ def main():
         )
 
         # -------------------------------------------------
-        # Final score
+        # Career goal score
+        # -------------------------------------------------
+
+        career_goal_score = (
+            calculate_career_goal_score(
+                title,
+                career_goal,
+                preferred_roles,
+                domains
+            )
+        )
+
+        # -------------------------------------------------
+        # Base ranking
+        # -------------------------------------------------
+
+        base_score = (
+            calculate_final_score(
+                semantic_score,
+                technical_score,
+                ai_relevance,
+                ai_application_score,
+                domain_score,
+                title_relevance,
+                ai_intent,
+                detected_skills
+            )
+        )
+
+        # -------------------------------------------------
+        # Goal-aware ranking
         # -------------------------------------------------
 
         final_score = (
-    calculate_final_score(
-        semantic_score,
-        technical_score,
-        ai_relevance,
-        ai_application_score,
-        domain_score,
-        title_relevance,
-        ai_intent,
-        detected_skills
-    )
-)
+            calculate_goal_aware_score(
+                base_score,
+                career_goal_score,
+                title_relevance,
+                ai_intent
+            )
+        )
+
+        # -------------------------------------------------
+        # AI query filtering
+        #
+        # If user explicitly wants an AI career, do not
+        # allow completely unrelated occupations into the
+        # final ranking just because they have programming
+        # or semantic similarity.
+        # -------------------------------------------------
+
+        if ai_intent:
+
+            meaningful_match = (
+
+                career_goal_score >= 0.30
+
+                or
+
+                ai_relevance >= 0.10
+
+                or
+
+                ai_application_score >= 0.15
+            )
+
+            if not meaningful_match:
+
+                continue
+
         # -------------------------------------------------
         # Explanation
         # -------------------------------------------------
@@ -1899,13 +2510,15 @@ def main():
                 matched_terms,
                 technical_score,
                 ai_relevance,
-                title_relevance
+                title_relevance,
+                career_goal_score
             )
         )
 
         ranked_results.append({
 
-            "result": result,
+            "result":
+                result,
 
             "semantic_score":
                 semantic_score,
@@ -1916,11 +2529,20 @@ def main():
             "ai_relevance":
                 ai_relevance,
 
+            "ai_application_score":
+                ai_application_score,
+
             "domain_score":
                 domain_score,
 
             "title_relevance":
                 title_relevance,
+
+            "career_goal_score":
+                career_goal_score,
+
+            "base_score":
+                base_score,
 
             "final_score":
                 final_score,
@@ -1930,9 +2552,6 @@ def main():
 
             "explanation":
                 explanation,
-                
-            "ai_application_score":
-                ai_application_score,   
         })
 
     # -----------------------------------------------------
@@ -1984,22 +2603,33 @@ def main():
         )
 
         code = (
+
             result.get(
                 "onet_code"
             )
-            or result.get(
+
+            or
+
+            result.get(
                 "O*NET-SOC Code"
             )
-            or result.get(
+
+            or
+
+            result.get(
                 "soc_code"
             )
-            or result.get(
+
+            or
+
+            result.get(
                 "code"
             )
-            or title
-        )
 
-        # Extra duplicate protection
+            or
+
+            title
+        )
 
         if code in seen_codes:
 
@@ -2039,23 +2669,33 @@ def main():
         )
 
         print(
-           f"AI Relevance: "
-           f"{item['ai_relevance']:.4f}"
+            f"AI Relevance: "
+            f"{item['ai_relevance']:.4f}"
         )
 
         print(
-         f"AI Application Score: "
-         f"{item['ai_application_score']:.4f}"
+            f"AI Application Score: "
+            f"{item['ai_application_score']:.4f}"
         )
 
         print(
-          f"Domain Score: "
-          f"{item['domain_score']:.4f}"
+            f"Domain Score: "
+            f"{item['domain_score']:.4f}"
         )
 
         print(
             f"Title Relevance: "
             f"{item['title_relevance']:.4f}"
+        )
+
+        print(
+            f"Career Goal Score: "
+            f"{item['career_goal_score']:.4f}"
+        )
+
+        print(
+            f"Base Final Score: "
+            f"{item['base_score']:.4f}"
         )
 
         print(
@@ -2066,46 +2706,22 @@ def main():
         if item["matched_terms"]:
 
             print(
-                "Matched Terms: " +
+                "Matched Terms: "
+                +
                 ", ".join(
                     item["matched_terms"][:6]
                 )
             )
 
         print(
-            "Why: " +
+            "Why: "
+            +
             item["explanation"]
         )
 
         print(
             "-" * 70
         )
-
-        # -------------------------------------------------
-        # Occupation information
-        # -------------------------------------------------
-
-        occupation_text = result.get(
-            "text",
-            ""
-        )
-
-        if occupation_text:
-
-            print(
-                occupation_text[:1000]
-                + (
-                    "..."
-                    if len(
-                        occupation_text
-                    ) > 1000
-                    else ""
-                )
-            )
-
-            print(
-                "-" * 70
-            )
 
 
 # =========================================================
