@@ -1173,40 +1173,12 @@ def retrieve_careers(
 
     for candidate in candidates:
 
-        title = candidate.get(
-            "title",
-            candidate.get(
-                "occupation",
-                candidate.get(
-                    "name",
-                    ""
-                )
-            )
-        )
+        extracted_result = candidate.get("result", candidate)
+        title = extracted_result.get("title", "Unknown")
+        description = extracted_result.get("text", extracted_result.get("description", ""))
+        semantic_score = float(candidate.get("semantic_score", candidate.get("_semantic_score", 0.0)))
 
-        description = candidate.get(
-            "description",
-            candidate.get(
-                "text",
-                candidate.get(
-                    "occupation_text",
-                    ""
-                )
-            )
-        )
-
-        # =================================================
-        # Existing ranking metrics
-        # =================================================
-
-        semantic_score = float(
-            candidate.get(
-                "_semantic_score",
-                0.0
-            )
-        )
-
-        technical_score = calculate_technical_match(
+        technical_score, matched_terms = calculate_technical_match(
             description,
             detected_skills
         )
@@ -1240,7 +1212,9 @@ def retrieve_careers(
             ai_relevance,
             ai_application_score,
             domain_score,
-            title_relevance
+            title_relevance,
+            ai_intent,          # التعديل: أضفنا هذا
+            detected_skills     # التعديل: وأضفنا هذا
         )
 
         # =================================================
@@ -1303,14 +1277,11 @@ def retrieve_careers(
 
         explanation = generate_explanation(
             title,
-            description,
-            detected_skills,
-            semantic_score,
+            matched_terms,
             technical_score,
             ai_relevance,
-            ai_application_score,
-            domain_score,
-            title_relevance
+            title_relevance,
+            career_goal_score
         )
 
         # =================================================
@@ -1347,7 +1318,10 @@ def retrieve_careers(
 
             "base_final_score":
                 base_score,
-
+            
+            "matched_terms":
+                matched_terms,
+                
             "final_score":
                 final_score,
 
