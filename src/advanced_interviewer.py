@@ -4,6 +4,10 @@ import win32com.client
 import json
 from llama_cpp import Llama
 import random
+import tkinter as tk
+from tkinter import filedialog
+import PyPDF2
+import os
 
 print("⏳ جاري تحميل العقل المدبر والنظام الصوتي...")
 
@@ -76,13 +80,50 @@ class CareerAI_Dynamic:
         self.core_skill = ""
         self.cv_text = ""
         
+    def get_cv_text(self):
+        print("📁 جاري فتح نافذة اختيار ملف السيرة الذاتية (PDF)...")
+        
+        # إخفاء النافذة الرئيسية لـ tkinter عشان تطلع نافذة اختيار الملفات بس
+        root = tk.Tk()
+        root.withdraw()
+        # عشان النافذة تطلع فوق كل البرامج
+        root.attributes('-topmost', True) 
+        
+        # فتح نافذة الاختيار
+        file_path = filedialog.askopenfilename(
+            title="اختر ملف السيرة الذاتية (CV)",
+            filetypes=[("PDF Files", "*.pdf")]
+        )
+        
+        if file_path and os.path.exists(file_path):
+            print(f"✅ تم اختيار الملف: {os.path.basename(file_path)}")
+            try:
+                with open(file_path, 'rb') as file:
+                    reader = PyPDF2.PdfReader(file)
+                    text = ""
+                    for page in reader.pages:
+                        text += page.extract_text() + "\n"
+                
+                if text.strip():
+                    return text.strip()
+                else:
+                    print("⚠️ الملف فاضي أو مقفل بصيغة صورة (ما قدرت أقرأ النص).")
+            except Exception as e:
+                print(f"⚠️ حصل خطأ في قراءة الملف: {e}")
+        else:
+            print("⚠️ ما اخترت ملف أو ألغيت العملية.")
+            
+        # البديل (Fallback) إذا فشل قراءة الملف أو ما تم الاختيار
+        print("\n✍️ (البديل) أدخل نبذة عن مهاراتك وخبراتك يدوياً (ثم اضغط Enter):")
+        return input(">> ")
+
     def setup_interview(self):
         print("\n" + "="*50)
         print("📄 الخطوة 1: تحليل السيرة الذاتية (CV)")
         print("="*50)
-        # هنا تلصق الـ CV حقك (تقدر تعدله بعدين ليقرأ من ملف PDF)
-        print("أدخل نبذة عن مهاراتك وخبراتك (ثم اضغط Enter):")
-        self.cv_text = input(">> ")
+        
+        # استدعاء دالة قراءة الملف الذكية
+        self.cv_text = self.get_cv_text()
         
         print("\n⏳ جاري تحليل مهاراتك واقتراح الوظائف...")
         prompt_jobs = f"Analyze this CV and suggest the top 5 most suitable tech jobs. Output ONLY a valid JSON array of strings like this: ['Job 1', 'Job 2', ...]. CV: {self.cv_text}"
@@ -108,7 +149,6 @@ class CareerAI_Dynamic:
                 
         print(f"\n🎯 تم اختيار وظيفة: {self.job_role}")
         
-        # استخراج أهم مهارة للوظيفة عشان نختبره فيها
         print("⏳ جاري تجهيز الأسئلة التقنية...")
         prompt_skill = f"What is the single most important technical skill (e.g., Python, React, SQL) for a {self.job_role}? Output ONLY the skill name in one word."
         self.core_skill = ask_llm(prompt_skill, temp=0.1, max_tokens=10).replace(".", "").strip()
