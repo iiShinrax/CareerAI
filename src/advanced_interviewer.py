@@ -1,4 +1,4 @@
-import arrcorr  
+# import arrcorr  
 import speech_recognition as sr
 import win32com.client
 import json
@@ -8,7 +8,8 @@ import tkinter as tk
 from tkinter import filedialog
 import PyPDF2
 import os
-
+import gdown
+from rag_search import JobRAG
 print("⏳ جاري تحميل العقل المدبر والنظام الصوتي...")
 
 # ==========================================
@@ -52,9 +53,35 @@ def listen_until_done():
 # ==========================================
 # 2. إعداد المودل (LLM)
 # ==========================================
-MODEL_PATH = r"D:\Desktop\creearAi\CareerAI\src\llm\qwen2.5-3b-instruct.Q4_K_M.gguf"
-llm = Llama(model_path=MODEL_PATH, n_ctx=2048, n_threads=4, verbose=False)
 
+# ==========================================
+# إعداد مسار المودل وتحميله التلقائي من درايف
+# ==========================================
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+MODEL_DIR = os.path.join(BASE_DIR, "llm")
+MODEL_PATH = os.path.join(MODEL_DIR, "qwen2.5-3b-instruct.Q4_K_M.gguf")
+
+# إذا المجلد llm مو موجود، يسويه تلقائياً
+if not os.path.exists(MODEL_DIR):
+    os.makedirs(MODEL_DIR)
+
+# إذا المودل مو موجود، بيحمله من رابطك في درايف مباشرة!
+if not os.path.exists(MODEL_PATH):
+    print("\n⏳ المودل غير موجود! جاري التحميل من قوقل درايف تلقائياً...")
+    print("⚠️ (حجم الملف كبير، قد يستغرق بعض الوقت حسب سرعة النت عندك)")
+    
+    # الـ ID الخاص بملفك في قوقل درايف
+    FILE_ID = '1I3XIB5wZ324nOG-oEihHEnIkMizpxBtJ' 
+    url = f'https://drive.google.com/uc?id={FILE_ID}'
+    
+    # أمر التحميل
+    gdown.download(url, MODEL_PATH, quiet=False)
+    print("✅ تم تحميل المودل بنجاح! بنكمل تشغيل المقابلة الحين...\n")
+    
+print("⏳ جاري تهيئة المودل في الذاكرة (LLM)...")
+llm = Llama(model_path=MODEL_PATH, n_ctx=2048, n_threads=4, verbose=False)
+print("⏳ جاري تهيئة محرك البحث RAG...")
+rag_engine = JobRAG()
 def ask_llm(prompt, temp=0.6, max_tokens=150):
     response = llm.create_chat_completion(
         messages=[{"role": "user", "content": prompt}],
@@ -153,6 +180,8 @@ class CareerAI_Dynamic:
         prompt_skill = f"What is the single most important technical skill (e.g., Python, React, SQL) for a {self.job_role}? Output ONLY the skill name in one word."
         self.core_skill = ask_llm(prompt_skill, temp=0.1, max_tokens=10).replace(".", "").strip()
         print(f"⚙️ المهارة الأساسية اللي سيتم اختبارك فيها: {self.core_skill}")
+        print(f"⏳ جاري سحب المعايير المهنية لوظيفة {self.job_role} من قاعدة البيانات (O*NET)...")
+        self.job_context = rag_engine.search_job(self.job_role)
 
     def run_interview(self):
         welcome = f"Hello! I am your AI Interviewer for the {self.job_role} position. Let's begin."
@@ -185,7 +214,14 @@ class CareerAI_Dynamic:
         
         for level in levels:
             random_seed = random.randint(1, 10000)
-            prompt_q = f"Ask ONE short, direct, and UNIQUE {level} level technical question about {self.core_skill} for a {self.job_role}. Focus on real-world application. Random Seed: {random_seed}"
+            prompt_q = f"""
+            Based on the official job requirements from our O*NET database:
+            {self.job_context}
+            
+            Ask ONE short, direct, and UNIQUE {level} level technical question about {self.core_skill} for a {self.job_role}. 
+            The question MUST be related to the tasks and skills mentioned in the database context above.
+            Focus on real-world application. Random Seed: {random_seed}
+            """
             q_tech = ask_llm(prompt_q, temp=0.8)
             print(f"\n📈 [مستوى {level}] 🤖 {q_tech}"); speak(q_tech)
             ans_tech = listen_until_done()
