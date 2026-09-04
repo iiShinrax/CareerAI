@@ -6,7 +6,7 @@ __pycache__/
 
 # Local vector database
 vector_db/
-
+*.gguf
 # O*NET raw data
 data/raw/
 
