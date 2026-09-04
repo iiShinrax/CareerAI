@@ -1,0 +1,11 @@
+llama-cpp-python
+SpeechRecognition
+pyaudio
+PyPDF2
+pywin32
+arabic-reshaper
+python-bidi
+openai-whisper
+gdown
+faiss-cpu
+sentence-transformers

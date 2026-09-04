@@ -1,7 +1,7 @@
 import json
 import os
 
-INPUT_FILE = "data/processed/onet/occupation_profiles.jsonl"
+INPUT_FILE = r"data/processed/onet/occupation_profiles.jsonl"
 OUTPUT_FILE = "data/processed/onet/rag_documents.jsonl"
 
 

@@ -185,27 +185,29 @@ def main():
 
     print("Loading occupation profiles...")
 
-documents = []
+    documents = []
 
-with open(INPUT_FILE, "r", encoding="utf-8") as f:
-    for line in f:
-        documents.append(json.loads(line))
+    with open(INPUT_FILE, "r", encoding="utf-8") as f:
+        for line in f:
+            documents.append(json.loads(line))
 
-print(f"Loaded {len(documents)} RAG documents.")
+    print(f"Loaded {len(documents)} RAG documents.")
 
-print("\nPreparing RAG documents...")
+    print("\nPreparing RAG documents...")
 
-chunks = []
+    chunks = []
 
-for document in documents:
+    for document in documents:
 
-    chunks.append({
-        "occupation_code": document["occupation_code"],
-        "title": document["title"],
-        "job_zone": document["job_zone"],
-        "section": "full_profile",
-        "text": document["text"],
-    })
+        chunks.append({
+            "occupation_code": document["occupation_code"],
+            "title": document["title"],
+            "job_zone": document["job_zone"],
+            "section": "full_profile",
+            "text": document["text"],
+        })
+
+    # --- التعديل هنا: طلعنا باقي الكود برا اللوب (for) ورتبنا المسافات ---
 
     print(f"Prepared {len(chunks)} RAG chunks.")
 
