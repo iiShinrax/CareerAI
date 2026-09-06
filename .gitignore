@@ -1,0 +1,45 @@
+# Environment and secrets
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+env/
+backend/.venv/
+
+# Local application data
+*.db
+*.sqlite
+*.sqlite3
+
+# Frontend dependencies and builds
+node_modules/
+dist/
+frontend/.vite/
+*.tsbuildinfo
+
+# Local ML and RAG artifacts
+*.gguf
+*.safetensors
+rag-service/vector_db/
+
+# Logs and temporary files
+*.log
+*.tmp
+*.temp
+.DS_Store
+Thumbs.db
+
+# Editor and tooling files
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+.idea/
