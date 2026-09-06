@@ -1,0 +1,14 @@
+venv/
+__pycache__/
+*.pyc
+.env
+.DS_Store
+
+# Local vector database
+vector_db/
+*.gguf
+# O*NET raw data
+data/raw/
+
+# Generated files
+data/processed/

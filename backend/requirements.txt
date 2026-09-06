@@ -1,0 +1,14 @@
+sqlalchemy>=2.0
+pydantic>=2.0
+email-validator
+psycopg2-binary   # PostgreSQL driver — needed once you point DATABASE_URL at real Postgres
+python-dotenv
+fastapi
+uvicorn[standard]
+python-jose[cryptography]
+bcrypt
+python-multipart   # needed for OAuth2PasswordRequestForm (login endpoint)
+PyPDF2             # needed by routers/cv.py to extract text from uploaded CVs
+llama-cpp-python   # needed by services/llm_client.py to run the local GGUF model
+faiss-cpu          # needed by rag-service/rag_search.py (imported via services/rag_client.py)
+sentence-transformers   # needed by rag-service/rag_search.py (imported via services/rag_client.py)
