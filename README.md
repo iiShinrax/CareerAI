@@ -112,3 +112,6 @@ Expected response:
 ```json
 {"status":"ok","service":"careerai-api"}
 ```
+
+here a video demo with a Presentation and the model
+https://drive.google.com/drive/folders/1gas-akP6hlU0i9pTbm4os-dSjt37aGiq?usp=sharing
